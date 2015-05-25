@@ -3,5 +3,5 @@ npm-debug.log
 Procfile
 .env
 .DS_Store
-./public/javascripts/app.js
-./public/stylesheets/app.css
+public/javascripts/app.js
+public/stylesheets/app.css
