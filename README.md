@@ -1,13 +1,21 @@
 Agar.io Clone
 =============
 
-# Installation
-#### Dependencies
-```
-npm install
-```
+## Getting Started
+1. Install dependencies
 
-#### Run
-```
-node run.js
-```
+        npm install
+
+2. Run client
+
+        node run.js
+
+## Contributing
+Please contribute to this repository if any of the following is true:
+- You have expertise in community development, communication, or education
+- You want open source communities to be more collaborative and inclusive
+- You want to help lower the burden to first time contributors
+
+1. Install EditorConfig(http://editorconfig.org/) in IDE
+2. Clone this repository
+3. Run `gulp`
