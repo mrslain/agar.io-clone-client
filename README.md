@@ -1,6 +1,8 @@
 Agar.io Clone
 =============
 
+![Preview](http://i.imgur.com/BtIeZdc.png)
+
 ## Getting Started
 1. Install dependencies
 
@@ -20,6 +22,6 @@ Please contribute to this repository if any of the following is true:
 - You want open source communities to be more collaborative and inclusive
 - You want to help lower the burden to first time contributors
 
-1. Install EditorConfig(http://editorconfig.org/) in IDE
+1. Install [EditorConfig](http://editorconfig.org/) in IDE
 2. Clone this repository
 3. Run `gulp watch`
