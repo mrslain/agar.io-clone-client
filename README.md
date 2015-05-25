@@ -6,6 +6,10 @@ Agar.io Clone
 
         npm install
 
+1. Compile coffeescript & stylus
+
+        gulp default
+
 2. Run client
 
         node run.js
@@ -18,4 +22,4 @@ Please contribute to this repository if any of the following is true:
 
 1. Install EditorConfig(http://editorconfig.org/) in IDE
 2. Clone this repository
-3. Run `gulp`
+3. Run `gulp watch`
