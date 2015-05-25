@@ -1,3 +1,3 @@
 window.addEventListener "load", ((e) ->
-	new World
+  new World
 ), no

@@ -1,14 +1,13 @@
 {
-  "name": "agario-clone",
+  "name": "agario-clone-client",
   "version": "0.0.1",
-  "description": "",
+  "description": "Agar.io clone client",
   "main": "run.js",
   "scripts": {
     "start": "node run.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Slain",
-  "license": "MIT",
   "devDependencies": {
     "gulp": "^3.8.11",
     "gulp-coffee": "^2.3.1",
