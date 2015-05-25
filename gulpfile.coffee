@@ -23,6 +23,8 @@ gulp.task 'default', ->
   gulp.run 'coffee', 'stylus'
 
 gulp.task 'watch', ->
+  gulp.run 'default'
+
   # Watches files for changes
   gulp.watch 'source/coffee/**', ->
     gulp.run 'coffee'
