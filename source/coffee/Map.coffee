@@ -15,22 +15,21 @@ class Map
     width2 = @world.window.width / @scale.x
     height2 = @world.window.height / @scale.y
 
+    do @ctx.beginPath
     i = 0.5 + (width2 / 2 -@camera.loc.x) % @size
     while i < width2
-      do @ctx.beginPath
       @ctx.moveTo i, 0
       @ctx.lineTo i, height2
-      do @ctx.stroke
       i += @size
+    do @ctx.stroke
 
+    do @ctx.beginPath
     i = 0.5 + (-@camera.loc.y + height2 / 2) % @size
     while i < height2
-      do @ctx.beginPath
       @ctx.moveTo 0, i
       @ctx.lineTo width2, i
-      do @ctx.stroke
       i += @size
-
+    do @ctx.stroke
     do @ctx.restore
 
     do @ctx.save
