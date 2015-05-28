@@ -1,6 +1,6 @@
 class World
   constructor: (config) ->
-    @debug = no
+    @debug = new Debug on
 
     @canvas = document.getElementById "canvas"
     @ctx = @canvas.getContext "2d"
@@ -10,9 +10,7 @@ class World
 
     @scale = new Vector 1.0, 1.0
 
-    @scene =
-      width: 10000
-      height: 10000
+    @scene = new Rectangle(0, 0, 3000,  3000)
 
     @mouse = new Vector
 
@@ -25,13 +23,14 @@ class World
 
     @users = new BlobSystem
       world: @
+      mouse: @mouse
       camera: @camera
 
     @users.createBlob
       name: "Slain"
-      mouse: @mouse
-      color: { r: 224, g: 0, b: 0 }
+      color: { r: 231, g: 62, b: 62 }
       position: new Vector(400, 400)
+      controll: on
 
     @users.createBlob
       name: "Test"
@@ -63,6 +62,7 @@ class World
   update: ->
     do @camera.update
     do @users.update
+    do @debug.update
   draw: ->
     @ctx.fillStyle = '#F2FBFF';
     @ctx.fillRect 0, 0, @window.width, @window.height

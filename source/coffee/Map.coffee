@@ -37,3 +37,16 @@ class Map
     @ctx.scale @scale.x, @scale.y
     @ctx.translate -@camera.loc.x, -@camera.loc.y
     do @ctx.restore
+
+    if @world.debug.enable
+      do @ctx.save
+      do @ctx.beginPath
+      @ctx.strokeStyle = "#ff0000"
+      @ctx.globalAlpha = .1
+      @ctx.lineWidth = 4
+      @ctx.moveTo @world.window.width/2, 0
+      @ctx.lineTo @world.window.width/2, @world.window.height
+      @ctx.moveTo 0, @world.window.height/2
+      @ctx.lineTo @world.window.width, @world.window.height/2
+      do @ctx.stroke
+      do @ctx.restore
