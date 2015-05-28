@@ -1,7 +1,7 @@
 Agar.io Clone
 =============
 
-![Preview](http://i.imgur.com/BtIeZdc.png)
+![Preview](http://i.imgur.com/CTryTQs.png)
 
 ## Getting Started
 1. Install dependencies
