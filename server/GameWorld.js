@@ -2,6 +2,14 @@ const Player = require('./Player');
 const Food = require('./Food');
 const Base = require('./Base');
 
+// Game balance constants
+const GAME_CONFIG = {
+    // Combat mechanics
+    EATING_SIZE_RATIO: 1.1,      // Cell must be 10% larger to eat another
+    COLLISION_OVERLAP: 0.4,      // How much smaller cell must overlap to be eaten
+    MASS_ABSORPTION_RATE: 0.8,   // Percentage of mass gained when eating
+};
+
 // Faction definitions with colors and bonuses
 const FACTIONS = {
     RED: { 
@@ -223,15 +231,15 @@ class GameWorld {
                     player2.cells.forEach((cell2) => {
                         const dist = this.distance(cell1.x, cell1.y, cell2.x, cell2.y);
                         
-                        // One cell can eat another if it's 10% larger
-                        if (cell1.mass > cell2.mass * 1.1) {
-                            if (dist < cell1.radius - cell2.radius * 0.4) {
-                                cell1.mass += cell2.mass * 0.8;
+                        // One cell can eat another if it's larger by EATING_SIZE_RATIO
+                        if (cell1.mass > cell2.mass * GAME_CONFIG.EATING_SIZE_RATIO) {
+                            if (dist < cell1.radius - cell2.radius * GAME_CONFIG.COLLISION_OVERLAP) {
+                                cell1.mass += cell2.mass * GAME_CONFIG.MASS_ABSORPTION_RATE;
                                 cell2.mass = 0;
                             }
-                        } else if (cell2.mass > cell1.mass * 1.1) {
-                            if (dist < cell2.radius - cell1.radius * 0.4) {
-                                cell2.mass += cell1.mass * 0.8;
+                        } else if (cell2.mass > cell1.mass * GAME_CONFIG.EATING_SIZE_RATIO) {
+                            if (dist < cell2.radius - cell1.radius * GAME_CONFIG.COLLISION_OVERLAP) {
+                                cell2.mass += cell1.mass * GAME_CONFIG.MASS_ABSORPTION_RATE;
                                 cell1.mass = 0;
                             }
                         }

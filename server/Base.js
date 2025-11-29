@@ -29,7 +29,9 @@ class Base {
                 this.captureProgress[faction] = 0;
             }
             
-            // Increase capture progress based on mass present
+            // Use logarithmic scaling for capture rate based on mass present
+            // This prevents large players from dominating capture too quickly
+            // +1 prevents log(0) which would be -Infinity
             const massBonus = Math.log10(factionMass[faction] + 1);
             this.captureProgress[faction] += this.captureRate * massBonus;
             

@@ -4,6 +4,9 @@ const { Server } = require('socket.io');
 const path = require('path');
 const GameWorld = require('./GameWorld');
 
+// Configuration constants
+const MAX_CHAT_MESSAGE_LENGTH = 200;
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -60,7 +63,7 @@ io.on('connection', (socket) => {
                 playerId: socket.id,
                 playerName: player.name,
                 faction: player.faction,
-                message: message.substring(0, 200)
+                message: message.substring(0, MAX_CHAT_MESSAGE_LENGTH)
             });
         }
     });

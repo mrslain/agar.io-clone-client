@@ -8,7 +8,13 @@
     const CONFIG = {
         smoothing: 0.15,
         gridSize: 50,
-        minimapScale: 0.03
+        minimapScale: 0.03,
+        // Camera zoom settings
+        minZoom: 0.3,
+        maxZoom: 1,
+        zoomMassBase: 100,  // Base mass for zoom calculation
+        // Chat settings
+        maxChatMessages: 50
     };
 
     // =====================
@@ -297,8 +303,8 @@
         elements.chatMessages.appendChild(div);
         elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
-        // Limit messages
-        while (elements.chatMessages.children.length > 50) {
+        // Limit messages to prevent memory issues
+        while (elements.chatMessages.children.length > CONFIG.maxChatMessages) {
             elements.chatMessages.removeChild(elements.chatMessages.firstChild);
         }
     }
@@ -379,7 +385,7 @@
         // Update zoom based on mass
         const totalMass = game.myPlayer.totalMass || 20;
         game.lastMass = totalMass;
-        game.targetZoom = Math.max(0.3, Math.min(1, 100 / Math.sqrt(totalMass)));
+        game.targetZoom = Math.max(CONFIG.minZoom, Math.min(CONFIG.maxZoom, CONFIG.zoomMassBase / Math.sqrt(totalMass)));
         game.zoom += (game.targetZoom - game.zoom) * 0.1;
 
         // Update player mass display

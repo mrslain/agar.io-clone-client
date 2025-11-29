@@ -1,3 +1,12 @@
+// Cell configuration constants
+const CELL_CONFIG = {
+    MASS_DECAY_RATE: 0.9998,        // Rate at which large cells lose mass per tick
+    MASS_DECAY_THRESHOLD: 100,      // Minimum mass before decay starts
+    RADIUS_MULTIPLIER: 4,           // Radius = sqrt(mass) * this value
+    MAX_SPEED: 10,                  // Maximum movement speed
+    SPEED_DIVISOR: 200,             // Speed = min(MAX_SPEED, SPEED_DIVISOR / sqrt(mass))
+};
+
 class Cell {
     constructor(config) {
         this.id = config.id || `cell_${Date.now()}_${Math.random()}`;
@@ -11,7 +20,7 @@ class Cell {
     }
 
     get radius() {
-        return Math.sqrt(this.mass) * 4;
+        return Math.sqrt(this.mass) * CELL_CONFIG.RADIUS_MULTIPLIER;
     }
 
     update(worldWidth, worldHeight, speedMultiplier = 1) {
@@ -22,7 +31,7 @@ class Cell {
 
         if (dist > 5) {
             // Speed decreases with mass
-            const speed = Math.min(10, 200 / Math.sqrt(this.mass)) * speedMultiplier;
+            const speed = Math.min(CELL_CONFIG.MAX_SPEED, CELL_CONFIG.SPEED_DIVISOR / Math.sqrt(this.mass)) * speedMultiplier;
             
             this.velocityX = (dx / dist) * speed;
             this.velocityY = (dy / dist) * speed;
@@ -39,9 +48,9 @@ class Cell {
         this.x = Math.max(this.radius, Math.min(worldWidth - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(worldHeight - this.radius, this.y));
 
-        // Mass decay for large cells
-        if (this.mass > 100) {
-            this.mass *= 0.9998;
+        // Mass decay for large cells to prevent unlimited growth
+        if (this.mass > CELL_CONFIG.MASS_DECAY_THRESHOLD) {
+            this.mass *= CELL_CONFIG.MASS_DECAY_RATE;
         }
     }
 
