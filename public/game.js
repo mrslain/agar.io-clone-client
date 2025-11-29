@@ -6,15 +6,339 @@
     // Configuration
     // =====================
     const CONFIG = {
-        smoothing: 0.15,
+        smoothing: 0.08,           // Camera smoothing (lower = smoother)
         gridSize: 50,
         minimapScale: 0.03,
         // Camera zoom settings
         minZoom: 0.3,
         maxZoom: 1,
-        zoomMassBase: 100,  // Base mass for zoom calculation
+        zoomMassBase: 100,         // Base mass for zoom calculation
         // Chat settings
-        maxChatMessages: 50
+        maxChatMessages: 50,
+        // Blob physics settings (from original CoffeeScript)
+        blobQuality: 24,           // Number of nodes around blob (reduced for performance)
+        blobFriction: 1.035,       // Movement friction
+        blobNodeSmoothing: 0.08,   // How fast nodes return to normal position
+        blobPositionSmoothing: 0.15,// How fast node positions update
+        blobJointStrength: 0.5,    // Spring strength between nodes
+        blobSpeed: 5               // Base movement speed
+    };
+
+    // =====================
+    // Vector Class (from original CoffeeScript)
+    // =====================
+    class Vector {
+        constructor(x = 0, y = 0) {
+            this.x = x;
+            this.y = y;
+        }
+
+        add(v) { this.x += v.x; this.y += v.y; return this; }
+        subtract(v) { this.x -= v.x; this.y -= v.y; return this; }
+        multiply(v) { this.x *= v.x; this.y *= v.y; return this; }
+        divide(v) { this.x /= v.x; this.y /= v.y; return this; }
+        invert() { this.x *= -1; this.y *= -1; return this; }
+        copy(v) { this.x = v.x; this.y = v.y; return this; }
+        clone() { return new Vector(this.x, this.y); }
+        magnitude() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+    }
+
+    // =====================
+    // Blob Node & Joint Classes (from original CoffeeScript)
+    // =====================
+    class Joint {
+        constructor(node, strength = CONFIG.blobJointStrength) {
+            this.node = node;
+            this.strength = new Vector(strength, strength);
+            this.strain = new Vector();
+        }
+    }
+
+    class Node {
+        constructor(position) {
+            this.normal = new Vector();
+            this.target = new Vector();
+            this.position = position ? position.clone() : new Vector();
+            this.ghost = position ? position.clone() : new Vector();
+            this.angle = 0;
+            this.joints = [];
+        }
+    }
+
+    // =====================
+    // Client-side Blob representation
+    // =====================
+    class ClientBlob {
+        constructor(serverCell, color, darkColor) {
+            this.id = serverCell.id;
+            this.serverX = serverCell.x;
+            this.serverY = serverCell.y;
+            this.serverMass = serverCell.mass;
+            this.serverRadius = serverCell.radius;
+            
+            this.x = serverCell.x;
+            this.y = serverCell.y;
+            this.mass = serverCell.mass;
+            this.radius = serverCell.radius;
+            
+            this.color = color;
+            this.darkColor = darkColor;
+            
+            this.velocity = new Vector();
+            this.friction = new Vector(CONFIG.blobFriction, CONFIG.blobFriction);
+            this.nodes = [];
+            this.quality = CONFIG.blobQuality;
+            
+            this.createNodes();
+        }
+
+        createNodes() {
+            this.nodes = [];
+            
+            for (let i = 0; i < this.quality; i++) {
+                const node = new Node(new Vector(this.x, this.y));
+                // Set initial angle and normal
+                node.angle = (i / this.quality) * Math.PI * 2;
+                node.target = new Vector(
+                    Math.cos(node.angle) * this.radius,
+                    Math.sin(node.angle) * this.radius
+                );
+                node.normal = node.target.clone();
+                // Set initial position in world space
+                node.position = new Vector(
+                    this.x + node.normal.x,
+                    this.y + node.normal.y
+                );
+                node.ghost = node.position.clone();
+                this.nodes.push(node);
+            }
+            
+            this.updateJoints();
+        }
+
+        // Get element by offset with circular wrapping
+        getNodeByOffset(index, offset) {
+            let newIndex = index + offset;
+            if (newIndex >= this.quality) newIndex -= this.quality;
+            if (newIndex < 0) newIndex += this.quality;
+            return this.nodes[newIndex];
+        }
+
+        updateJoints() {
+            for (let i = 0; i < this.quality; i++) {
+                const node = this.nodes[i];
+                node.joints = [
+                    new Joint(this.getNodeByOffset(i, -1)),
+                    new Joint(this.getNodeByOffset(i, 1)),
+                    new Joint(this.getNodeByOffset(i, -2)),
+                    new Joint(this.getNodeByOffset(i, 2))
+                ];
+            }
+        }
+
+        updateNormals() {
+            for (let i = 0; i < this.quality; i++) {
+                const node = this.nodes[i];
+                node.angle = (i / this.quality) * Math.PI * 2;
+                node.target.copy(new Vector(
+                    Math.cos(node.angle) * this.radius,
+                    Math.sin(node.angle) * this.radius
+                ));
+                if (node.normal.x === 0 && node.normal.y === 0) {
+                    node.normal.copy(node.target);
+                }
+            }
+        }
+
+        updateFromServer(serverCell) {
+            this.serverX = serverCell.x;
+            this.serverY = serverCell.y;
+            this.serverMass = serverCell.mass;
+            this.serverRadius = serverCell.radius;
+        }
+
+        update(cameraX, cameraY) {
+            // Smoothly interpolate to server position
+            const dx = this.serverX - this.x;
+            const dy = this.serverY - this.y;
+            
+            this.velocity.x += dx * 0.15;
+            this.velocity.y += dy * 0.15;
+            this.velocity.divide(this.friction);
+            
+            this.x += this.velocity.x;
+            this.y += this.velocity.y;
+            
+            // Smoothly interpolate mass and radius
+            this.mass += (this.serverMass - this.mass) * 0.1;
+            this.radius += (this.serverRadius - this.radius) * 0.1;
+            
+            // Update node normals for new radius
+            this.updateNormals();
+            
+            // Update node physics in world space
+            for (let i = 0; i < this.quality; i++) {
+                const node = this.nodes[i];
+                node.ghost.copy(node.position);
+                
+                // Smoothly move normal toward target
+                const normalDiff = node.target.clone().subtract(node.normal);
+                normalDiff.multiply(new Vector(CONFIG.blobNodeSmoothing, CONFIG.blobNodeSmoothing));
+                node.normal.add(normalDiff);
+                
+                // Calculate position with joint strain (in world space)
+                const position = new Vector(this.x, this.y);
+                
+                for (let j = 0; j < node.joints.length; j++) {
+                    const joint = node.joints[j];
+                    const normal = joint.node.normal.clone().subtract(node.normal);
+                    const ghost = joint.node.ghost.clone().subtract(node.ghost);
+                    joint.strain.copy(ghost.subtract(normal));
+                    position.add(joint.strain.clone().multiply(joint.strength));
+                }
+                
+                position.add(node.normal);
+                
+                // Smoothly move node position
+                const positionDiff = position.subtract(node.position);
+                positionDiff.multiply(new Vector(CONFIG.blobPositionSmoothing, CONFIG.blobPositionSmoothing));
+                node.position.add(positionDiff);
+            }
+        }
+
+        draw(ctx, cameraX, cameraY) {
+            ctx.save();
+            ctx.beginPath();
+            
+            // Create gradient fill (using world coordinates since camera transform is applied)
+            const gradient = ctx.createRadialGradient(
+                this.x - this.radius * 0.3, this.y - this.radius * 0.3, 0,
+                this.x, this.y, this.radius
+            );
+            gradient.addColorStop(0, this.color);
+            gradient.addColorStop(1, this.darkColor);
+            
+            ctx.fillStyle = gradient;
+            ctx.strokeStyle = this.darkColor;
+            ctx.lineWidth = Math.max(3, this.radius * 0.08);
+            
+            // Draw blob shape using quadratic curves through nodes
+            const firstNode = this.getNodeByOffset(0, -1);
+            const secondNode = this.nodes[0];
+            
+            const startX = firstNode.position.x + (secondNode.position.x - firstNode.position.x) / 2;
+            const startY = firstNode.position.y + (secondNode.position.y - firstNode.position.y) / 2;
+            ctx.moveTo(startX, startY);
+            
+            for (let i = 0; i < this.quality; i++) {
+                const node = this.nodes[i];
+                const next = this.getNodeByOffset(i, 1);
+                
+                const midX = node.position.x + (next.position.x - node.position.x) / 2;
+                const midY = node.position.y + (next.position.y - node.position.y) / 2;
+                
+                ctx.quadraticCurveTo(node.position.x, node.position.y, midX, midY);
+            }
+            
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // =====================
+    // Blob Manager - manages client-side blob instances
+    // =====================
+    const blobManager = {
+        blobs: new Map(),  // cellId -> ClientBlob
+        
+        updateFromServer(players, cameraX, cameraY) {
+            const activeCellIds = new Set();
+            
+            players.forEach(player => {
+                if (!player.cells) return;
+                
+                player.cells.forEach(cell => {
+                    activeCellIds.add(cell.id);
+                    
+                    let blob = this.blobs.get(cell.id);
+                    if (!blob) {
+                        // Create new blob
+                        blob = new ClientBlob(cell, player.color, player.darkColor);
+                        this.blobs.set(cell.id, blob);
+                    } else {
+                        // Update existing blob
+                        blob.updateFromServer(cell);
+                        blob.color = player.color;
+                        blob.darkColor = player.darkColor;
+                    }
+                    
+                    // Store player info on blob for name rendering
+                    blob.playerName = player.name;
+                    blob.totalMass = player.totalMass;
+                    blob.playerId = player.id;
+                });
+            });
+            
+            // Remove blobs that no longer exist
+            for (const [cellId, blob] of this.blobs) {
+                if (!activeCellIds.has(cellId)) {
+                    this.blobs.delete(cellId);
+                }
+            }
+        },
+        
+        update(cameraX, cameraY) {
+            for (const blob of this.blobs.values()) {
+                blob.update(cameraX, cameraY);
+            }
+        },
+        
+        draw(ctx, cameraX, cameraY) {
+            // Sort by mass for proper layering
+            const sortedBlobs = Array.from(this.blobs.values())
+                .sort((a, b) => a.mass - b.mass);
+            
+            // Draw all blobs
+            sortedBlobs.forEach(blob => {
+                blob.draw(ctx, cameraX, cameraY);
+            });
+            
+            // Draw names on top (using world coordinates since camera transform is applied)
+            const drawnPlayers = new Set();
+            sortedBlobs.forEach(blob => {
+                if (drawnPlayers.has(blob.playerId)) return;
+                drawnPlayers.add(blob.playerId);
+                
+                // Find largest blob for this player
+                const playerBlobs = sortedBlobs.filter(b => b.playerId === blob.playerId);
+                const largestBlob = playerBlobs.reduce((max, b) => b.mass > max.mass ? b : max, playerBlobs[0]);
+                
+                const fontSize = Math.max(12, Math.min(24, largestBlob.radius * 0.4));
+                
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Text shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillText(largestBlob.playerName, largestBlob.x + 2, largestBlob.y + 2);
+                
+                // Text
+                ctx.fillStyle = '#fff';
+                ctx.fillText(largestBlob.playerName, largestBlob.x, largestBlob.y);
+                
+                // Mass
+                ctx.font = `${fontSize * 0.6}px Arial`;
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.fillText(Math.round(largestBlob.totalMass), largestBlob.x, largestBlob.y + fontSize);
+            });
+        },
+        
+        clear() {
+            this.blobs.clear();
+        }
     };
 
     // =====================
@@ -212,6 +536,9 @@
                 }
             });
 
+            // Update blob manager with server data
+            blobManager.updateFromServer(Array.from(game.players.values()), game.camera.x, game.camera.y);
+
             // Check if player died
             if (game.myPlayer && game.myPlayer.cells.length === 0) {
                 handleDeath();
@@ -378,7 +705,7 @@
             game.targetCamera.y = center.y;
         }
 
-        // Smooth camera movement
+        // Smooth camera movement (slower for smoother feel)
         game.camera.x += (game.targetCamera.x - game.camera.x) * CONFIG.smoothing;
         game.camera.y += (game.targetCamera.y - game.camera.y) * CONFIG.smoothing;
 
@@ -386,7 +713,10 @@
         const totalMass = game.myPlayer.totalMass || 20;
         game.lastMass = totalMass;
         game.targetZoom = Math.max(CONFIG.minZoom, Math.min(CONFIG.maxZoom, CONFIG.zoomMassBase / Math.sqrt(totalMass)));
-        game.zoom += (game.targetZoom - game.zoom) * 0.1;
+        game.zoom += (game.targetZoom - game.zoom) * 0.05; // Slower zoom for smoother feel
+
+        // Update blob physics
+        blobManager.update(game.camera.x, game.camera.y);
 
         // Update player mass display
         elements.playerMass.textContent = Math.round(totalMass);
@@ -423,8 +753,8 @@
         // Draw ejected mass
         drawEjectedMass();
 
-        // Draw players
-        drawPlayers();
+        // Draw players using blob physics system
+        blobManager.draw(ctx, 0, 0); // Camera offset already applied via transform
 
         // Draw world border
         drawWorldBorder();
