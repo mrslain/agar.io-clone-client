@@ -1,21 +1,30 @@
-// Faction base for capture mechanics
-class Base {
-    constructor(config) {
-        this.id = config.id;
-        this.faction = config.faction; // Original faction
-        this.controllingFaction = config.faction; // Current controller
-        this.x = config.x;
-        this.y = config.y;
-        this.radius = config.radius || 200;
-        this.controlPoints = config.controlPoints || 100; // Points needed to capture
-        this.captureProgress = {}; // { faction: points }
-        this.captureRate = 0.5; // Points per tick per mass unit
-        this.decayRate = 0.1; // Points decay per tick when no players present
+import { BaseData, FactionType } from '../shared/types';
+
+export class Base {
+    public id: string;
+    public faction: FactionType;
+    public controllingFaction: FactionType;
+    public x: number;
+    public y: number;
+    public radius: number;
+    public controlPoints: number;
+    public captureProgress: Record<string, number> = {};
+    public captureRate: number = 0.5;
+    public decayRate: number = 0.1;
+
+    constructor(id: string, faction: FactionType, x: number, y: number, radius: number = 200, controlPoints: number = 100) {
+        this.id = id;
+        this.faction = faction;
+        this.controllingFaction = faction;
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.controlPoints = controlPoints;
     }
 
-    updateCapture(playersInBase) {
-        // Count total mass per faction in base
-        const factionMass = {};
+    updateCapture(playersInBase: { faction: FactionType; mass: number }[]): void {
+        const factionMass: Record<string, number> = {};
+        
         playersInBase.forEach(player => {
             if (!factionMass[player.faction]) {
                 factionMass[player.faction] = 0;
@@ -28,17 +37,15 @@ class Base {
             if (!this.captureProgress[faction]) {
                 this.captureProgress[faction] = 0;
             }
-            
-            // Use logarithmic scaling for capture rate based on mass present
-            // This prevents large players from dominating capture too quickly
+
+            // Use logarithmic scaling for capture rate based on mass
             // +1 prevents log(0) which would be -Infinity
             const massBonus = Math.log10(factionMass[faction] + 1);
             this.captureProgress[faction] += this.captureRate * massBonus;
-            
+
             // Check for capture
             if (this.captureProgress[faction] >= this.controlPoints) {
-                this.controllingFaction = faction;
-                // Reset other factions' progress
+                this.controllingFaction = faction as FactionType;
                 Object.keys(this.captureProgress).forEach(f => {
                     if (f !== faction) {
                         this.captureProgress[f] = 0;
@@ -53,14 +60,9 @@ class Base {
                 this.captureProgress[faction] = Math.max(0, this.captureProgress[faction] - this.decayRate);
             }
         });
-
-        // Controlling faction gets defensive bonus
-        if (this.controllingFaction && !factionMass[this.controllingFaction]) {
-            // If no controlling faction members present, base becomes contestable faster
-        }
     }
 
-    serialize() {
+    serialize(): BaseData {
         return {
             id: this.id,
             originalFaction: this.faction,
@@ -68,10 +70,8 @@ class Base {
             x: this.x,
             y: this.y,
             radius: this.radius,
-            captureProgress: this.captureProgress,
+            captureProgress: this.captureProgress as Record<FactionType, number>,
             controlPoints: this.controlPoints
         };
     }
 }
-
-module.exports = Base;

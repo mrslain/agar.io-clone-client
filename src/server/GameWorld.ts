@@ -1,71 +1,62 @@
-const Player = require('./Player');
-const Food = require('./Food');
-const Base = require('./Base');
+import { Player } from './Player';
+import { Food } from './Food';
+import { Base } from './Base';
+import { 
+    FactionType, 
+    FactionStats, 
+    GameState, 
+    LeaderboardEntry,
+    FACTIONS,
+    GAME_CONFIG 
+} from '../shared/types';
 
-// Game balance constants
-const GAME_CONFIG = {
-    // Combat mechanics
-    EATING_SIZE_RATIO: 1.1,      // Cell must be 10% larger to eat another
-    COLLISION_OVERLAP: 0.4,      // How much smaller cell must overlap to be eaten
-    MASS_ABSORPTION_RATE: 0.8,   // Percentage of mass gained when eating
-};
+interface EjectedMass {
+    id: string;
+    ownerId: string;
+    x: number;
+    y: number;
+    velocityX: number;
+    velocityY: number;
+    mass: number;
+    lifetime: number;
+}
 
-// Faction definitions with colors and bonuses
-const FACTIONS = {
-    RED: { 
-        name: 'Crimson Legion', 
-        color: '#E74C3C', 
-        darkColor: '#C0392B',
-        bonus: 'speed', // 10% speed boost
-        bonusValue: 1.1
-    },
-    BLUE: { 
-        name: 'Azure Dynasty', 
-        color: '#3498DB', 
-        darkColor: '#2980B9',
-        bonus: 'mass', // 10% more mass from food
-        bonusValue: 1.1
-    },
-    GREEN: { 
-        name: 'Emerald Order', 
-        color: '#2ECC71', 
-        darkColor: '#27AE60',
-        bonus: 'regen', // Slow mass regeneration
-        bonusValue: 0.1
-    },
-    PURPLE: { 
-        name: 'Violet Empire', 
-        color: '#9B59B6', 
-        darkColor: '#8E44AD',
-        bonus: 'split', // Faster split cooldown
-        bonusValue: 0.8
-    }
-};
+interface GameWorldConfig {
+    width?: number;
+    height?: number;
+    foodCount?: number;
+    baseCount?: number;
+}
 
-class GameWorld {
-    constructor(config) {
-        this.width = config.width || 5000;
-        this.height = config.height || 5000;
-        this.foodCount = config.foodCount || 500;
-        this.baseCount = config.baseCount || 4;
+export class GameWorld {
+    public width: number;
+    public height: number;
+    public foodCount: number;
+    public baseCount: number;
 
-        this.players = new Map();
-        this.food = [];
-        this.ejectedMass = [];
-        this.bases = [];
+    public players: Map<string, Player> = new Map();
+    public food: Food[] = [];
+    public ejectedMass: EjectedMass[] = [];
+    public bases: Base[] = [];
+
+    constructor(config: GameWorldConfig = {}) {
+        this.width = config.width || GAME_CONFIG.WORLD_WIDTH;
+        this.height = config.height || GAME_CONFIG.WORLD_HEIGHT;
+        this.foodCount = config.foodCount || GAME_CONFIG.FOOD_COUNT;
+        this.baseCount = config.baseCount || GAME_CONFIG.BASE_COUNT;
 
         this.initFood();
         this.initBases();
     }
 
-    initFood() {
+    private initFood(): void {
         for (let i = 0; i < this.foodCount; i++) {
             this.spawnFood();
         }
     }
 
-    initBases() {
-        const factionKeys = Object.keys(FACTIONS);
+    private initBases(): void {
+        const factionKeys = Object.keys(FACTIONS) as FactionType[];
         const positions = [
             { x: this.width * 0.15, y: this.height * 0.15 },
             { x: this.width * 0.85, y: this.height * 0.15 },
@@ -75,72 +66,71 @@ class GameWorld {
 
         factionKeys.forEach((factionKey, index) => {
             if (index < this.baseCount) {
-                this.bases.push(new Base({
-                    id: `base_${factionKey}`,
-                    faction: factionKey,
-                    x: positions[index].x,
-                    y: positions[index].y,
-                    radius: 200,
-                    controlPoints: 100
-                }));
+                this.bases.push(new Base(
+                    `base_${factionKey}`,
+                    factionKey,
+                    positions[index].x,
+                    positions[index].y,
+                    200,
+                    100
+                ));
             }
         });
     }
 
-    spawnFood() {
-        const food = new Food({
-            id: `food_${Date.now()}_${Math.random()}`,
-            x: Math.random() * this.width,
-            y: Math.random() * this.height,
-            mass: Math.random() * 5 + 1
-        });
+    private spawnFood(): Food {
+        const food = new Food(
+            `food_${Date.now()}_${Math.random()}`,
+            Math.random() * this.width,
+            Math.random() * this.height,
+            Math.random() * 5 + 1
+        );
         this.food.push(food);
         return food;
     }
 
-    addPlayer(socketId, name, faction) {
+    addPlayer(socketId: string, name: string, faction: FactionType): Player | null {
         if (!FACTIONS[faction]) {
-            faction = Object.keys(FACTIONS)[Math.floor(Math.random() * 4)];
+            const keys = Object.keys(FACTIONS) as FactionType[];
+            faction = keys[Math.floor(Math.random() * keys.length)];
         }
 
-        const player = new Player({
-            id: socketId,
-            name: name || 'Player',
-            faction: faction,
-            factionData: FACTIONS[faction],
-            x: Math.random() * (this.width - 400) + 200,
-            y: Math.random() * (this.height - 400) + 200,
-            mass: 20
-        });
+        const player = new Player(
+            socketId,
+            name || 'Player',
+            faction,
+            Math.random() * (this.width - 400) + 200,
+            Math.random() * (this.height - 400) + 200,
+            20
+        );
 
         this.players.set(socketId, player);
         return player;
     }
 
-    removePlayer(socketId) {
+    removePlayer(socketId: string): void {
         this.players.delete(socketId);
     }
 
-    getPlayer(socketId) {
+    getPlayer(socketId: string): Player | undefined {
         return this.players.get(socketId);
     }
 
-    updatePlayerTarget(socketId, x, y) {
+    updatePlayerTarget(socketId: string, x: number, y: number): void {
         const player = this.players.get(socketId);
         if (player) {
             player.setTarget(x, y);
         }
     }
 
-    splitPlayer(socketId) {
+    splitPlayer(socketId: string): void {
         const player = this.players.get(socketId);
         if (player && player.canSplit()) {
-            const newCells = player.split();
-            // Split cells are handled within player
+            player.split();
         }
     }
 
-    ejectMass(socketId) {
+    ejectMass(socketId: string): void {
         const player = this.players.get(socketId);
         if (player && player.canEject()) {
             const ejected = player.eject();
@@ -150,7 +140,7 @@ class GameWorld {
         }
     }
 
-    update() {
+    update(): void {
         // Update all players
         this.players.forEach((player) => {
             player.update(this.width, this.height);
@@ -158,21 +148,18 @@ class GameWorld {
 
         // Update ejected mass
         this.ejectedMass = this.ejectedMass.filter(mass => {
-            mass.update();
+            mass.x += mass.velocityX;
+            mass.y += mass.velocityY;
+            mass.velocityX *= 0.95;
+            mass.velocityY *= 0.95;
             mass.lifetime--;
             return mass.lifetime > 0;
         });
 
-        // Check food collisions
+        // Check collisions
         this.checkFoodCollisions();
-
-        // Check ejected mass collisions
         this.checkEjectedMassCollisions();
-
-        // Check player vs player collisions
         this.checkPlayerCollisions();
-
-        // Check base capture progress
         this.updateBases();
 
         // Respawn food
@@ -181,14 +168,13 @@ class GameWorld {
         }
     }
 
-    checkFoodCollisions() {
+    private checkFoodCollisions(): void {
         this.players.forEach((player) => {
             player.cells.forEach((cell) => {
                 this.food = this.food.filter((food) => {
-                    const dist = this.distance(cell.x, cell.y, food.x, food.y);
+                    const dist = Math.sqrt((cell.x - food.x) ** 2 + (cell.y - food.y) ** 2);
                     if (dist < cell.radius) {
                         let massGain = food.mass;
-                        // Apply faction bonus
                         if (player.factionData.bonus === 'mass') {
                             massGain *= player.factionData.bonusValue;
                         }
@@ -201,11 +187,11 @@ class GameWorld {
         });
     }
 
-    checkEjectedMassCollisions() {
+    private checkEjectedMassCollisions(): void {
         this.players.forEach((player) => {
             player.cells.forEach((cell) => {
                 this.ejectedMass = this.ejectedMass.filter((mass) => {
-                    const dist = this.distance(cell.x, cell.y, mass.x, mass.y);
+                    const dist = Math.sqrt((cell.x - mass.x) ** 2 + (cell.y - mass.y) ** 2);
                     if (dist < cell.radius && mass.ownerId !== player.id) {
                         cell.mass += mass.mass;
                         return false;
@@ -216,22 +202,20 @@ class GameWorld {
         });
     }
 
-    checkPlayerCollisions() {
+    private checkPlayerCollisions(): void {
         const playersArray = Array.from(this.players.values());
-        
+
         for (let i = 0; i < playersArray.length; i++) {
             for (let j = i + 1; j < playersArray.length; j++) {
                 const player1 = playersArray[i];
                 const player2 = playersArray[j];
 
-                // Same faction players can't eat each other
                 if (player1.faction === player2.faction) continue;
 
                 player1.cells.forEach((cell1) => {
                     player2.cells.forEach((cell2) => {
-                        const dist = this.distance(cell1.x, cell1.y, cell2.x, cell2.y);
-                        
-                        // One cell can eat another if it's larger by EATING_SIZE_RATIO
+                        const dist = Math.sqrt((cell1.x - cell2.x) ** 2 + (cell1.y - cell2.y) ** 2);
+
                         if (cell1.mass > cell2.mass * GAME_CONFIG.EATING_SIZE_RATIO) {
                             if (dist < cell1.radius - cell2.radius * GAME_CONFIG.COLLISION_OVERLAP) {
                                 cell1.mass += cell2.mass * GAME_CONFIG.MASS_ABSORPTION_RATE;
@@ -246,11 +230,9 @@ class GameWorld {
                     });
                 });
 
-                // Remove dead cells
                 player1.cells = player1.cells.filter(c => c.mass > 0);
                 player2.cells = player2.cells.filter(c => c.mass > 0);
 
-                // Respawn dead players
                 if (player1.cells.length === 0) {
                     player1.respawn(this.width, this.height);
                 }
@@ -261,13 +243,13 @@ class GameWorld {
         }
     }
 
-    updateBases() {
+    private updateBases(): void {
         this.bases.forEach((base) => {
-            const playersInBase = [];
-            
+            const playersInBase: { faction: FactionType; mass: number }[] = [];
+
             this.players.forEach((player) => {
                 player.cells.forEach((cell) => {
-                    const dist = this.distance(cell.x, cell.y, base.x, base.y);
+                    const dist = Math.sqrt((cell.x - base.x) ** 2 + (cell.y - base.y) ** 2);
                     if (dist < base.radius + cell.radius) {
                         playersInBase.push({
                             faction: player.faction,
@@ -281,25 +263,24 @@ class GameWorld {
         });
     }
 
-    distance(x1, y1, x2, y2) {
-        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-    }
-
-    getState() {
-        const players = [];
-        this.players.forEach((player) => {
-            players.push(player.serialize());
-        });
+    getState(): GameState {
+        const players = Array.from(this.players.values()).map(p => p.serialize());
 
         return {
             players,
             food: this.food.map(f => f.serialize()),
-            ejectedMass: this.ejectedMass.map(m => m.serialize()),
+            ejectedMass: this.ejectedMass.map(m => ({
+                id: m.id,
+                x: m.x,
+                y: m.y,
+                mass: m.mass,
+                radius: Math.sqrt(m.mass) * 4
+            })),
             bases: this.bases.map(b => b.serialize())
         };
     }
 
-    getLeaderboard() {
+    getLeaderboard(): LeaderboardEntry[] {
         const players = Array.from(this.players.values());
         return players
             .map(p => ({
@@ -312,9 +293,10 @@ class GameWorld {
             .slice(0, 10);
     }
 
-    getFactionStats() {
-        const stats = {};
-        Object.keys(FACTIONS).forEach(key => {
+    getFactionStats(): Record<FactionType, FactionStats> {
+        const stats: Record<FactionType, FactionStats> = {} as Record<FactionType, FactionStats>;
+        
+        (Object.keys(FACTIONS) as FactionType[]).forEach(key => {
             stats[key] = {
                 ...FACTIONS[key],
                 totalMass: 0,
@@ -343,5 +325,3 @@ class GameWorld {
         return this.bases.map(b => b.serialize());
     }
 }
-
-module.exports = GameWorld;

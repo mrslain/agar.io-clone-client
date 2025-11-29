@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clan Wars - Multiplayer Arena</title>
+    <title>Clan Wars - Multiplayer Arena (WebGL)</title>
     <style>
         * {
             margin: 0;
@@ -51,6 +51,15 @@
             font-size: 18px;
             color: #888;
             margin-bottom: 40px;
+        }
+
+        #login-screen .tech-badge {
+            font-size: 12px;
+            color: #4ECDC4;
+            margin-bottom: 20px;
+            padding: 5px 15px;
+            border: 1px solid #4ECDC4;
+            border-radius: 20px;
         }
 
         #login-form {
@@ -261,6 +270,12 @@
             margin-top: 10px;
         }
 
+        #player-info .renderer-info {
+            font-size: 10px;
+            color: #4ECDC4;
+            margin-top: 5px;
+        }
+
         /* Minimap */
         #minimap {
             position: fixed;
@@ -361,6 +376,7 @@
     <div id="login-screen">
         <h1>⚔️ Clan Wars</h1>
         <p class="subtitle">Multiplayer Arena Battle</p>
+        <div class="tech-badge">TypeScript + WebGL/WebGPU</div>
         <div id="login-form">
             <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
             <p style="margin-bottom: 10px; color: #888; font-size: 12px;">Choose your faction:</p>
@@ -410,6 +426,7 @@
                 Space: Split | W: Eject Mass<br>
                 Enter: Chat
             </div>
+            <div class="renderer-info" id="renderer-info">Renderer: Canvas2D</div>
         </div>
 
         <!-- Minimap -->

@@ -1,25 +1,23 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-const GameWorld = require('./GameWorld');
-
-// Configuration constants
-const MAX_CHAT_MESSAGE_LENGTH = 200;
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import path from 'path';
+import { GameWorld } from './GameWorld';
+import { GAME_CONFIG, FactionType } from '../shared/types';
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 // Serve static files from public directory
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../../public')));
 
 // Create game world
 const gameWorld = new GameWorld({
-    width: 5000,
-    height: 5000,
-    foodCount: 500,
-    baseCount: 4
+    width: GAME_CONFIG.WORLD_WIDTH,
+    height: GAME_CONFIG.WORLD_HEIGHT,
+    foodCount: GAME_CONFIG.FOOD_COUNT,
+    baseCount: GAME_CONFIG.BASE_COUNT
 });
 
 // Socket.io connection handling
@@ -27,7 +25,7 @@ io.on('connection', (socket) => {
     console.log(`Player connected: ${socket.id}`);
 
     // Handle player joining
-    socket.on('join', (data) => {
+    socket.on('join', (data: { name: string; faction: FactionType }) => {
         const player = gameWorld.addPlayer(socket.id, data.name, data.faction);
         if (player) {
             socket.emit('joined', {
@@ -41,7 +39,7 @@ io.on('connection', (socket) => {
     });
 
     // Handle player movement
-    socket.on('move', (data) => {
+    socket.on('move', (data: { x: number; y: number }) => {
         gameWorld.updatePlayerTarget(socket.id, data.x, data.y);
     });
 
@@ -56,14 +54,14 @@ io.on('connection', (socket) => {
     });
 
     // Handle chat messages
-    socket.on('chat', (message) => {
+    socket.on('chat', (message: string) => {
         const player = gameWorld.getPlayer(socket.id);
         if (player) {
             io.emit('chat', {
                 playerId: socket.id,
                 playerName: player.name,
                 faction: player.faction,
-                message: message.substring(0, MAX_CHAT_MESSAGE_LENGTH)
+                message: message.substring(0, GAME_CONFIG.MAX_CHAT_MESSAGE_LENGTH)
             });
         }
     });
@@ -76,17 +74,14 @@ io.on('connection', (socket) => {
     });
 });
 
-// Game loop - 60 updates per second
-const TICK_RATE = 60;
+// Game loop
 setInterval(() => {
     gameWorld.update();
-    
-    // Send game state to all players
     const state = gameWorld.getState();
     io.emit('gameState', state);
-}, 1000 / TICK_RATE);
+}, 1000 / GAME_CONFIG.TICK_RATE);
 
-// Send leaderboard updates every second
+// Leaderboard updates
 setInterval(() => {
     const leaderboard = gameWorld.getLeaderboard();
     const factionStats = gameWorld.getFactionStats();
