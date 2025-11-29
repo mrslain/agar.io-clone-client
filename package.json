@@ -1,25 +1,23 @@
 {
-  "name": "agario-clone-client",
-  "version": "0.0.1",
-  "description": "Agar.io clone client",
-  "main": "run.js",
+  "name": "clan-wars-multiplayer",
+  "version": "2.0.0",
+  "description": "Multiplayer Agar.io clone with faction/clan warfare - TypeScript + WebGL/WebGPU",
+  "main": "dist/server/index.js",
   "scripts": {
-    "start": "node run.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/server/index.js",
+    "dev": "npm run build && npm start",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "author": "Slain",
-  "devDependencies": {
-    "gulp": "^3.8.11",
-    "gulp-coffee": "^2.3.1",
-    "gulp-concat": "^2.5.2",
-    "gulp-stylus": "^2.0.1",
-    "gulp-uglify": "^1.2.0"
-  },
   "dependencies": {
-    "body-parser": "^1.12.4",
-    "coffee-script": "^1.9.2",
-    "express": "^4.12.3",
-    "jade": "^1.9.2",
-    "logule": "^2.0.1"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.2"
   }
 }
